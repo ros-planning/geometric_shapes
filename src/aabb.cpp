@@ -1,7 +1,7 @@
 /*********************************************************************
 * Software License Agreement (BSD License)
 *
-*  Copyright (c) 2008, Willow Garage, Inc.
+*  Copyright (c) 2019, Open Robotics
 *  All rights reserved.
 *
 *  Redistribution and use in source and binary forms, with or without
@@ -32,41 +32,33 @@
 *  POSSIBILITY OF SUCH DAMAGE.
 *********************************************************************/
 
-/* Author: Ioan Sucan, E. Gil Jones */
+/* Author: Martin Pecka */
 
-#ifndef GEOMETRIC_SHAPES_BODY_OPERATIONS_
-#define GEOMETRIC_SHAPES_BODY_OPERATIONS_
+#include <geometric_shapes/aabb.h>
+#include <fcl/shape/geometric_shapes_utility.h>
 
-#include "geometric_shapes/shapes.h"
-#include "geometric_shapes/bodies.h"
-#include "geometric_shapes/shape_messages.h"
-#include <geometry_msgs/Pose.h>
-#include <vector>
-
-namespace bodies
+void bodies::AABB::extendWithTransformedBox(const Eigen::Isometry3d& transform, const Eigen::Vector3d& box)
 {
-/** \brief Create a body from a given shape */
-Body* createBodyFromShape(const shapes::Shape* shape);
+  // Method adapted from FCL src/shape/geometric_shapes_utility.cpp#computeBV<AABB, Box>(...) (BSD-licensed code):
+  // https://github.com/flexible-collision-library/fcl/blob/fcl-0.4/src/shape/geometric_shapes_utility.cpp#L292
+  // We don't call their code because it would need creating temporary objects.
+  //
+  // Here's a nice explanation why it works: https://zeuxcg.org/2010/10/17/aabb-from-obb-with-component-wise-abs/
 
-/** \brief Create a body from a given shape */
-Body* constructBodyFromMsg(const shape_msgs::Mesh& shape, const geometry_msgs::Pose& pose);
+  // TODO: In FCL 0.6, the inefficencies are gone and the AABB can be computed like this:
+  // fcl::AABB aabb;
+  // fcl::computeBV(fcl::Box(box), transform, aabb);
+  // extend(aabb.min_);
+  // extend(aabb.max_);
 
-/** \brief Create a body from a given shape */
-Body* constructBodyFromMsg(const shape_msgs::SolidPrimitive& shape, const geometry_msgs::Pose& pose);
+  const Eigen::Matrix3d& r = transform.rotation();
+  const Eigen::Vector3d& t = transform.translation();
 
-/** \brief Create a body from a given shape */
-Body* constructBodyFromMsg(const shapes::ShapeMsg& shape, const geometry_msgs::Pose& pose);
+  double x_range = 0.5 * (fabs(r(0, 0) * box[0]) + fabs(r(0, 1) * box[1]) + fabs(r(0, 2) * box[2]));
+  double y_range = 0.5 * (fabs(r(1, 0) * box[0]) + fabs(r(1, 1) * box[1]) + fabs(r(1, 2) * box[2]));
+  double z_range = 0.5 * (fabs(r(2, 0) * box[0]) + fabs(r(2, 1) * box[1]) + fabs(r(2, 2) * box[2]));
 
-/** \brief Compute a bounding sphere to enclose a set of bounding spheres */
-void mergeBoundingSpheres(const std::vector<BoundingSphere>& spheres, BoundingSphere& mergedSphere);
-
-/** \brief Compute an axis-aligned bounding box to enclose a set of bounding boxes. */
-void mergeBoundingBoxes(const std::vector<AABB>& boxes, AABB& mergedBox);
-
-/** \brief Compute an approximate oriented bounding box to enclose a set of bounding boxes. */
-void mergeBoundingBoxesApprox(const std::vector<OBB>& boxes, OBB& mergedBox);
-
-/** \brief Compute the bounding sphere for a set of \e bodies and store the resulting sphere in \e mergedSphere */
-void computeBoundingSphere(const std::vector<const Body*>& bodies, BoundingSphere& mergedSphere);
+  const Eigen::Vector3d v_delta(x_range, y_range, z_range);
+  extend(t + v_delta);
+  extend(t - v_delta);
 }
-#endif

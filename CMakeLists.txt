@@ -32,6 +32,11 @@ find_package(Eigen3 REQUIRED)
 
 find_package(octomap REQUIRED)
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LIBFCL_PC REQUIRED fcl)
+find_path(LIBFCL_INCLUDE_DIRS fcl/config.h HINTS ${LIBFCL_PC_INCLUDE_DIR} ${LIBFCL_PC_INCLUDE_DIRS})
+find_library(LIBFCL_LIBRARIES fcl HINTS ${LIBFCL_PC_LIBRARY_DIRS})
+
 find_package(catkin REQUIRED COMPONENTS
   eigen_stl_containers
   random_numbers
@@ -61,20 +66,23 @@ if (HAVE_QHULL_2011)
 endif()
 
 include_directories(include)
+include_directories(SYSTEM ${LIBFCL_INCLUDE_DIRS})
 include_directories(${EIGEN3_INCLUDE_DIR} ${Boost_INCLUDE_DIR} ${ASSIMP_INCLUDE_DIRS} ${OCTOMAP_INCLUDE_DIRS})
 include_directories(${catkin_INCLUDE_DIRS} ${console_bridge_INCLUDE_DIRS})
 
 add_library(${PROJECT_NAME}
+  src/aabb.cpp
   src/bodies.cpp
   src/body_operations.cpp
   src/mesh_operations.cpp
+  src/obb.cpp
   src/shape_extents.cpp
   src/shape_operations.cpp
   src/shape_to_marker.cpp
   src/shapes.cpp
 )
 
-target_link_libraries(${PROJECT_NAME} ${ASSIMP_LIBRARIES} ${QHULL_LIBRARIES} ${catkin_LIBRARIES} ${console_bridge_LIBRARIES} ${Boost_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} ${ASSIMP_LIBRARIES} ${QHULL_LIBRARIES} ${catkin_LIBRARIES} ${console_bridge_LIBRARIES} ${Boost_LIBRARIES} ${LIBFCL_LIBRARIES})
 
 
 if(CATKIN_ENABLE_TESTING)

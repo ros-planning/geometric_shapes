@@ -175,3 +175,15 @@ void bodies::computeBoundingSphere(const std::vector<const bodies::Body*>& bodie
   }
   sphere.radius = sqrt(max_dist_squared);
 }
+
+void bodies::mergeBoundingBoxes(const std::vector<bodies::AABB>& boxes, bodies::AABB& mergedBox)
+{
+  for (const auto& box : boxes)
+    mergedBox.extend(box);
+}
+
+void bodies::mergeBoundingBoxesApprox(const std::vector<bodies::OBB>& boxes, bodies::OBB& mergedBox)
+{
+  for (const auto& box : boxes)
+    mergedBox.extendApprox(box);
+}
