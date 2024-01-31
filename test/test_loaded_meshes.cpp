@@ -35,6 +35,11 @@
 #include <gtest/gtest.h>
 #include "resources/config.h"
 
+namespace
+{
+auto& RNG = shapes::RandomNumberGenerator::getInstance();
+}  // namespace
+
 /**
  * Test fixture that generates meshes from the primitive shapes SPHERE, CYLINDER, CONE and BOX,
  * and load their twins from STL files. All the following tests are intended to verify that both
@@ -77,8 +82,6 @@ public:
   }
 
 protected:
-  random_numbers::RandomNumberGenerator rng;
-
   std::vector<shapes::Mesh*> shape_meshes;
   std::vector<shapes::Mesh*> loaded_meshes;
 
@@ -98,7 +101,10 @@ TEST_F(CompareMeshVsPrimitive, ContainsPoint)
     bool found = false;
     for (int i = 0; i < 100; ++i)
     {
-      if ((shape_cms->samplePointInside(rng, 10000, p)) || (loaded_cms->samplePointInside(rng, 10000, p)))
+      if ((shape_cms->samplePointInside(
+              [](double lower_bound, double upper_bound) { return RNG.uniform(lower_bound, upper_bound); }, 10000, p)) ||
+          (loaded_cms->samplePointInside(
+              [](double lower_bound, double upper_bound) { return RNG.uniform(lower_bound, upper_bound); }, 10000, p)))
       {
         found = true;
         EXPECT_EQ(shape_cms->containsPoint(p), loaded_cms->containsPoint(p));
@@ -119,8 +125,8 @@ TEST_F(CompareMeshVsPrimitive, IntersectsRay)
     bool intersects = false;
     for (int i = 0; i < 100; ++i)
     {
-      Eigen::Vector3d ray_o(rng.uniformReal(-1.0, +1.0), rng.uniformReal(-1.0, +1.0), rng.uniformReal(-1.0, +1.0));
-      Eigen::Vector3d ray_d(rng.uniformReal(-1.0, +1.0), rng.uniformReal(-1.0, +1.0), rng.uniformReal(-1.0, +1.0));
+      Eigen::Vector3d ray_o(RNG.uniform(-1.0, +1.0), RNG.uniform(-1.0, +1.0), RNG.uniform(-1.0, +1.0));
+      Eigen::Vector3d ray_d(RNG.uniform(-1.0, +1.0), RNG.uniform(-1.0, +1.0), RNG.uniform(-1.0, +1.0));
       EigenSTL::vector_Vector3d vi1, vi2;
       shape_cms->intersectsRay(ray_o, ray_d, &vi1);
       loaded_cms->intersectsRay(ray_o, ray_d, &vi2);

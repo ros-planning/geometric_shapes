@@ -48,6 +48,11 @@ extern "C" {
 
 namespace bodies
 {
+namespace
+{
+auto& RNG = shapes::RandomNumberGenerator::getInstance();
+}  // namespace
+
 namespace detail
 {
 static const double ZERO = 1e-9;
@@ -120,16 +125,16 @@ inline Eigen::Vector3d normalize(const Eigen::Vector3d& dir)
 }
 }  // namespace bodies
 
-bool bodies::Body::samplePointInside(random_numbers::RandomNumberGenerator& rng, unsigned int max_attempts,
+bool bodies::Body::samplePointInside(std::function<double(double, double)> random_value, unsigned int max_attempts,
                                      Eigen::Vector3d& result) const
 {
   BoundingSphere bs;
   computeBoundingSphere(bs);
   for (unsigned int i = 0; i < max_attempts; ++i)
   {
-    result = Eigen::Vector3d(rng.uniformReal(bs.center.x() - bs.radius, bs.center.x() + bs.radius),
-                             rng.uniformReal(bs.center.y() - bs.radius, bs.center.y() + bs.radius),
-                             rng.uniformReal(bs.center.z() - bs.radius, bs.center.z() + bs.radius));
+    result = Eigen::Vector3d(random_value(bs.center.x() - bs.radius, bs.center.x() + bs.radius),
+                             random_value(bs.center.y() - bs.radius, bs.center.y() + bs.radius),
+                             random_value(bs.center.z() - bs.radius, bs.center.z() + bs.radius));
     if (containsPoint(result))
       return true;
   }
@@ -206,7 +211,7 @@ void bodies::Sphere::computeBoundingBox(bodies::AABB& bbox) const
   bbox.extendWithTransformedBox(transform, Eigen::Vector3d(2 * radiusU_, 2 * radiusU_, 2 * radiusU_));
 }
 
-bool bodies::Sphere::samplePointInside(random_numbers::RandomNumberGenerator& rng, unsigned int max_attempts,
+bool bodies::Sphere::samplePointInside(std::function<double(double, double)> random_value, unsigned int max_attempts,
                                        Eigen::Vector3d& result) const
 {
   for (unsigned int i = 0; i < max_attempts; ++i)
@@ -221,7 +226,7 @@ bool bodies::Sphere::samplePointInside(random_numbers::RandomNumberGenerator& rn
     // to sphere volume
     for (int j = 0; j < 20; ++j)
     {
-      result = Eigen::Vector3d(rng.uniformReal(minX, maxX), rng.uniformReal(minY, maxY), rng.uniformReal(minZ, maxZ));
+      result = Eigen::Vector3d(random_value(minX, maxX), random_value(minY, maxY), random_value(minZ, maxZ));
       if (containsPoint(result))
         return true;
     }
@@ -363,17 +368,17 @@ void bodies::Cylinder::updateInternalData()
   d2_ = tmp - length2_;
 }
 
-bool bodies::Cylinder::samplePointInside(random_numbers::RandomNumberGenerator& rng, unsigned int /* max_attempts */,
-                                         Eigen::Vector3d& result) const
+bool bodies::Cylinder::samplePointInside(std::function<double(double, double)> random_value,
+                                         unsigned int /* max_attempts */, Eigen::Vector3d& result) const
 {
   // sample a point on the base disc of the cylinder
-  double a = rng.uniformReal(-boost::math::constants::pi<double>(), boost::math::constants::pi<double>());
-  double r = rng.uniformReal(-radiusU_, radiusU_);
+  double a = random_value(-boost::math::constants::pi<double>(), boost::math::constants::pi<double>());
+  double r = random_value(-radiusU_, radiusU_);
   double x = cos(a) * r;
   double y = sin(a) * r;
 
   // sample e height
-  double z = rng.uniformReal(-length2_, length2_);
+  double z = random_value(-length2_, length2_);
 
   result = pose_ * Eigen::Vector3d(x, y, z);
   return true;
@@ -541,11 +546,11 @@ bodies::Cylinder::Cylinder(const bodies::BoundingCylinder& cylinder) : Body()
   setPose(cylinder.pose);
 }
 
-bool bodies::Box::samplePointInside(random_numbers::RandomNumberGenerator& rng, unsigned int /* max_attempts */,
+bool bodies::Box::samplePointInside(std::function<double(double, double)> random_value, unsigned int /* max_attempts */,
                                     Eigen::Vector3d& result) const
 {
-  result = pose_ * Eigen::Vector3d(rng.uniformReal(-length2_, length2_), rng.uniformReal(-width2_, width2_),
-                                   rng.uniformReal(-height2_, height2_));
+  result = pose_ * Eigen::Vector3d(random_value(-length2_, length2_), random_value(-width2_, width2_),
+                                   random_value(-height2_, height2_));
   return true;
 }
 

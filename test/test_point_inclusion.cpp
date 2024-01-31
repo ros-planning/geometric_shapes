@@ -31,12 +31,18 @@
 #include <geometric_shapes/bodies.h>
 #include <geometric_shapes/shape_operations.h>
 #include <geometric_shapes/body_operations.h>
+#include "geometric_shapes/random_number_utils.hpp"
 #include <boost/filesystem.hpp>
 #include <gtest/gtest.h>
 #include "resources/config.h"
 
 // We expect surface points are counted inside.
 #define EXPECT_SURF EXPECT_TRUE
+
+namespace
+{
+auto& RNG = shapes::RandomNumberGenerator::getInstance();
+}  // namespace
 
 // split length into the largest number elem, such that sqrt(elem^2 + elem^2) <= length
 double largestComponentForLength2D(const double length)
@@ -51,13 +57,11 @@ double largestComponentForLength2D(const double length)
   return sq2;
 }
 
-Eigen::Isometry3d getRandomPose(random_numbers::RandomNumberGenerator& g)
+Eigen::Isometry3d getRandomPose()
 {
-  const Eigen::Vector3d t(g.uniformReal(-100, 100), g.uniformReal(-100, 100), g.uniformReal(-100, 100));
+  const Eigen::Vector3d t(RNG.uniform(-100, 100), RNG.uniform(-100, 100), RNG.uniform(-100, 100));
 
-  double quat[4];
-  g.quaternion(quat);
-  const Eigen::Quaterniond r({ quat[3], quat[0], quat[1], quat[2] });
+  const Eigen::Quaterniond r = RNG.getRandomQuaternion();
 
   return Eigen::Isometry3d::TranslationType(t) * r;
 }
@@ -133,16 +137,16 @@ TEST(SpherePointContainment, SimpleInside)
   sphere->setScale(1.05);
   EXPECT_TRUE(sphere->containsPoint(0, 0, 1.0));
 
-  random_numbers::RandomNumberGenerator r(0);
   Eigen::Vector3d p;
   for (int i = 0; i < 1000; ++i)
   {
-    const Eigen::Isometry3d pos = getRandomPose(r);
+    const Eigen::Isometry3d pos = getRandomPose();
     sphere->setPose(pos);
-    sphere->setScale(r.uniformReal(0.1, 100.0));
-    sphere->setPadding(r.uniformReal(-0.001, 10.0));
+    sphere->setScale(RNG.uniform(0.1, 100.0));
+    sphere->setPadding(RNG.uniform(-0.001, 10.0));
 
-    EXPECT_TRUE(sphere->samplePointInside(r, 100, p));
+    EXPECT_TRUE(sphere->samplePointInside(
+        [](double lower_bound, double upper_bound) { return RNG.uniform(lower_bound, upper_bound); }, 100, p));
     EXPECT_TRUE(sphere->containsPoint(p));
   }
   delete sphere;
@@ -256,9 +260,9 @@ TEST(BoxPointContainment, SimpleInside)
   bool contains = box->containsPoint(0, 0, 1.0);
   EXPECT_TRUE(contains);
 
-  random_numbers::RandomNumberGenerator r;
   Eigen::Vector3d p;
-  EXPECT_TRUE(box->samplePointInside(r, 100, p));
+  EXPECT_TRUE(box->samplePointInside(
+      [](double lower_bound, double upper_bound) { return RNG.uniform(lower_bound, upper_bound); }, 100, p));
   EXPECT_TRUE(box->containsPoint(p));
 
   delete box;
@@ -294,16 +298,16 @@ TEST(BoxPointContainment, Sampled)
   shapes::Box shape(1.0, 2.0, 3.0);
   bodies::Box box(&shape);
 
-  random_numbers::RandomNumberGenerator r(0);
   Eigen::Vector3d p;
   for (int i = 0; i < 1000; ++i)
   {
-    const Eigen::Isometry3d pos = getRandomPose(r);
+    const Eigen::Isometry3d pos = getRandomPose();
     box.setPose(pos);
-    box.setScale(r.uniformReal(0.1, 100.0));
-    box.setPadding(r.uniformReal(-0.001, 10.0));
+    box.setScale(RNG.uniform(0.1, 100.0));
+    box.setPadding(RNG.uniform(-0.001, 10.0));
 
-    EXPECT_TRUE(box.samplePointInside(r, 100, p));
+    EXPECT_TRUE(box.samplePointInside(
+        [](double lower_bound, double upper_bound) { return RNG.uniform(lower_bound, upper_bound); }, 100, p));
     EXPECT_TRUE(box.containsPoint(p));
   }
 }
@@ -429,16 +433,16 @@ TEST(CylinderPointContainment, Sampled)
   shapes::Cylinder shape(1.0, 4.0);
   bodies::Cylinder cylinder(&shape);
 
-  random_numbers::RandomNumberGenerator r(0);
   Eigen::Vector3d p;
   for (int i = 0; i < 1000; ++i)
   {
-    const Eigen::Isometry3d pos = getRandomPose(r);
+    const Eigen::Isometry3d pos = getRandomPose();
     cylinder.setPose(pos);
-    cylinder.setScale(r.uniformReal(0.1, 100.0));
-    cylinder.setPadding(r.uniformReal(-0.001, 10.0));
+    cylinder.setScale(RNG.uniform(0.1, 100.0));
+    cylinder.setPadding(RNG.uniform(-0.001, 10.0));
 
-    EXPECT_TRUE(cylinder.samplePointInside(r, 100, p));
+    EXPECT_TRUE(cylinder.samplePointInside(
+        [](double lower_bound, double upper_bound) { return RNG.uniform(lower_bound, upper_bound); }, 100, p));
     EXPECT_TRUE(cylinder.containsPoint(p));
   }
 }
@@ -522,12 +526,12 @@ TEST(MeshPointContainment, Pr2Forearm)
   t.translation().x() = 1.0;
   EXPECT_FALSE(m->cloneAt(t)->containsPoint(-1.0, 0.0, 0.0));
 
-  random_numbers::RandomNumberGenerator r(0);
   Eigen::Vector3d p;
   bool found = true;
   for (int i = 0; i < 10; ++i)
   {
-    if (m->samplePointInside(r, 10000, p))
+    if (m->samplePointInside(
+            [](double lower_bound, double upper_bound) { return RNG.uniform(lower_bound, upper_bound); }, 10000, p))
     {
       found = true;
       EXPECT_TRUE(m->containsPoint(p));
